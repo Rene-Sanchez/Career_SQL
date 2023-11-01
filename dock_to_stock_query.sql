@@ -1,7 +1,4 @@
 with
---                AND (item_number not like '1%' --belts
---                  OR item_number not like '3%' --accessories
---                  OR item_number not like '8%') --neckwear
 append_prev_nxt_and_harvest_returns as (
     SELECT end_tran_date,
            tran_log_id,
@@ -12,7 +9,7 @@ append_prev_nxt_and_harvest_returns as (
            LEAD(tran_type, 1, 0) OVER (PARTITION BY hu_id ORDER BY tran_log_id) AS Next_Location
     FROM fivetran.highjump_replica_dbo.t_tran_log
     WHERE end_tran_date >= '2021-06-01'
-      AND tran_type in ('526', '216', '214') --,'523' sometimes contains returns
+      AND tran_type in ('526', '216', '214') --'523' sometimes contains returns
 )
 
 , pruning_data_1 as ( -- ensures that event sets start with a return and itemizes sets
@@ -23,8 +20,6 @@ append_prev_nxt_and_harvest_returns as (
     hu_id,
     tran_type,
     description,
---     previous_location,
---     Next_Location,
     CASE
        WHEN (Previous_Location = 0 AND tran_type in ('216', '214')) -- remove stub putaway events
                 or  (Previous_Location = 0 AND Next_Location = 0) then 'Delete' -- removes events not part of set
@@ -32,7 +27,6 @@ append_prev_nxt_and_harvest_returns as (
        END AS Delete_
     FROM append_prev_nxt_and_harvest_returns
     WHERE previous_location <> tran_type -- removes redundant scans
---     and  HU_ID = '10163803'
      and Delete_ is null
 )
 
@@ -76,4 +70,3 @@ Returned_Date,
 DATEDIFF(day, Returned_Date, Date) D2S
 FROM generate_return_date
 WHERE description <> 'Returns'
--- and Barcode in ('60394775','60237072')
